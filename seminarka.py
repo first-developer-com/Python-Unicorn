@@ -7,129 +7,141 @@ import time
 
 
 ####################################################################################################################################################################################################################################################################################################
-#	1. Příklad 
+#	1. Příklad (5 bodů) Hledání prvočísel. 
 ####################################################################################################################################################################################################################################################################################################
 
+# Reseni se skládá z 2 funkce:
+# 1) prvocislo_test(n), která umí jenom testovat 1 číslo a vrátí True v případě, že zadané číslo je prvočíslem a Falše když není.
+
+# 2) sekvenci_prvocisel(minv,maxv) která generuje sekvence čísel podle vstupnych max/min hodnot, testuje každé číslo z sekvenci a vypíše do konzole sekvence prvočísel a procento prvočísel v sekvenci
+
+
 def prvocislo_test(n):
-    n = int(n)
-    if n < 2: # 0 a 1 najsou prvocisla
+    n = int(n) # vstupní argument musí být integer nabo se převádět k int
+    if n < 2: # 0 a 1 nejsou prvočísla, vrátím False
         return False
-    elif n == 2: # 2 je prvocislo
+    elif n == 2: # 2 je prvočíslo vrátím True
         return True
-    # proměnná-dělič, ktera bude se zvýšit o 1 v cyklu    
+
+    # Při kontrole prvočísla stačí přepočítat děliče 2 až druhá odmocnina zkoumaného čísla. Takže cyklus začínáme dvojkou a končíme odmocninou vstupního čísla
+
     i = 2
-    # Limit, do kterého se zvýší i.
-	# (Při kontrole prvocisla  stačí přepočítat děliče 2 až druhá odmocnina zkoumaného čísla.)
     limit = int(math.sqrt(n))
-
-    while i <= limit:
-        if n % i == 0:
+    while i <= limit: # pomocí while ověřim zůstatek od dělení od 2 do odmocniny n
+        if n % i == 0: # kdyby alespoň jedno zustetek byl 0, n není prvočíslo
             return False
-        i += 1
-
-    return True
-
-
-def task1(minv: int, maxv :int):  
-
-	if not maxv > minv:
-		quit('max musi byt vice nez min')
+        i += 1  # zvětšuju iterátor (a zároveň dělič)
+    return True  # jinak ano
 
 
-	preresult = list()	
+def sekvenci_prvocisel(minv: int, maxv :int):  # minv a maxv použito protože nelze užívat max a min jako jméno prom. je to funkce pythonu. Ukazuju, že ta funkce přijímá jenom celočíselné hodnoty pomocí varname: type
 
-	for a in range(minv,maxv+1):
-		if prvocislo_test(a):
-			preresult.append(a)	
+    try: # Používám try, protože int() v případě selhání nevrátí False ale hodí chybu a zároveň nejde podminkovat úspěšnost přiřazení. Jinak try v případě chyby splní except
+        minv = int(minv) # převedení k int když je to možné a uživatel bych zedal něco jiného.
+        maxv = int(maxv) 
+    except:  # V případě, že převést do int není možné, vypsat hlášku
+        quit("Chyba: minv nebo maxv nejsou integer")	
+
+    if not maxv > minv: # validace minv a maxv
+        quit('Chyba: max musí být vyšší než min')
+
+    result = list()	# založím prázdný list pro výsledek
+    
+    for a in range(minv,maxv+1): # ygeneruju sekvenci čísel od minv do maxv+1. +1 protože for nebere poslední element.
+        if prvocislo_test(a): # když v tom kole cyklu a je prvočíslo, dám jeho do vektoru výsledků pomocí append
+            result.append(a)	
 		
-	total_count = maxv - minv + 1
-	true_count = len(preresult)
+    total_count = maxv - minv + 1 # počítám kolik mám čísel k testování
+    true_count = len(result) # podle délky listu (funkce len() vrátí délku) výsledků (pozitivních) zjistím počet prvočísel v sekvenci
 
-	print('sekvenci prvočísel: ' + str(preresult))
-	print('procento prvočísel: ', str(round(true_count/total_count*100,2))+'%')
+    print('Sekvence prvočísel: ' + str(result)) # výpisu Sekvence prvočísel. Konkatenace je možná jenom pro řetězce, tak konvertuju list do řetězce pomocí str()
+    print('Procento prvočísel: ', str(round(true_count/total_count*100,2))+'%') # spočítám a výpisu procento prvočísel. To číslo může být dost dlouhým, tak to zkrátím do 2 číslic po čárce pomocí round. Tak to vypadá pěkně
 
-#task1(25.1,35)
+# Testování
+#sekvenci_prvocisel(0,12)
+#sekvenci_prvocisel(2.1,25)
+#sekvenci_prvocisel('2',10)
+#sekvenci_prvocisel('two',10)
+
 
 ####################################################################################################################################################################################################################################################################################################
 #	2. Příklad 
 ####################################################################################################################################################################################################################################################################################################
 
-def validate(string, cut=False):
-	if cut:
-		preres = re.findall("\d+", string)
-		if len(preres) == 0:
-			return 'neznámé'
-		else:
-			return str(preres[0]).strip()
-	if string == 'NA':
-		return 'neznámé'
-	else:
-		return string.strip()
 
-def task2():
-	text="Karel Novak, 39 let, 1500, V:2,R:0,P:1; Jana Malá, 40 let, 2100, V:3, R:1,P:0; Pavel Mlady, 20 let, NA, V:1, R:NA, P:0"
-	rows = text.split(';')
-	for i in range(0,len(rows)):
-		hrac = rows[i].split(',')
-		print("|{:-^38}|".format("Karta hráče "))
+# Reseni se skládá z 2 funkce:
+# 1) validate(string, num) připravuje hodnoty. Kontroluje NA, když je číselná, očistí od textů, symbolů a mezer, ořízne mezery na začátku a konci
+# 2) fotbaliste(text) rozdělí řetězec podle oddělovače na jednotlivá fotbalisté, pak rozdělí na jednotlivé vlastnosti. Vlastnosti připraví pomocí první funkce a vypíše do zadaného formátu
+
+
+
+def validate(string, num=False):  # přijímá řetězec a bool hodnotu číselné/textove. Když druhý argument nezadávat, bude False
+	if num: # když hodnota je číselná
+		preres = re.findall("\d+", string) # oddělím regulárním výrazem jenom číslice
+		
+		if len(preres) == 0:  # estli číslice nejsou to znamená že je NA nebo nějaký text nebo vůbec nic
+			return 'neznámé'  # v tom případě vrátím řetězec neznámé, který dál se použije abych nadřadit chybějící hdnoty
+		else:
+			return str(preres[0]) # pokud nějaké číslice tam jsou, převádím to do stringu (pro vhodnost konkatenace dál) a vrátím to
+	if string.strip() == 'NA': # pokud není číselná, odstraním mezery a ověřím na NA
+		return 'neznámé' # v tom případě vrátím řetězec neznámé, který dál se použije abych nadřadit chybějící hodnoty
+	else:
+		return string.strip() # jinak vrátím ten řetězec bez mezer na začátku a na konci
+
+def fotbaliste(text):
+	rows = text.split(';') # rozdělím text na jednotlivé fotbalisté podle oddelvace ; pomocí metody split()
+	for i in range(0,len(rows)): # cyklusem projdu fotbalisté
+		hrac = rows[i].split(',') # rozdělím text na jednotlivé vlastnosti podle oddelvace , pomocí metody split()
+		print("|{:-^38}|".format("Karta hráče ")) 
 		print("|{:38}|".format("Jméno: "+validate(hrac[0].strip().split(' ')[0])))
 		print("|{:38}|".format("Příjmení: "+validate(hrac[0].strip().split(' ')[1])))
-		print("|{:38}|".format("Let: "+validate(hrac[1])))
-		print("|Score:{:.>32}|".format(validate(hrac[2])+" bodů"))
+		print("|{:38}|".format("Let: "+validate(hrac[1], True)))
+		print("|Score:{:.>32}|".format(validate(hrac[2], True)+" bodů"))
 		print("|Výhry: {: ^31}|".format(validate(hrac[3], True)))
 		print("|Remíza:{: ^31}|".format(validate(hrac[4], True)))
 		print("|Prohry:{: ^31}|".format(validate(hrac[5], True)))
-		print("|{:-^38}|".format("<Hráč č. "+str(i)+">")+"\n\n")
+		print("|{:-^38}|".format("<Hráč č. "+str(i+1)+">")+"\n\n")
 		
+# formát používám pro formátování řádků, kde výrazem :-^38} nastavím pozice řetězce a zaplnění mezer. 38 je délka řádku | je prostě symbol. Tím "říkám" ulož mi hodnotu proměně uprostřed řádku, který mezi | a | bude mít 38 znaky, a zbytek doplň znakem -
 
-#task2()		
+#fotbaliste("Karel Novak, 39 let, 1500, V:2,R:0,P:1; Jana Malá, 40 let, 2100, V:3, R:1,P:0; Pavel Mlady, 20 let, NA, V:1, R:NA, P:0")	
+#fotbaliste("Igor Novy, 22 let, 999, V:2,R:1,P:2")			
+#fotbaliste("NA NA, NA let, NA, V:NA,R:NA,P:NA")
+
 
 
 ####################################################################################################################################################################################################################################################################################################
 #	3. Příklad 
 ####################################################################################################################################################################################################################################################################################################
 
-
-# Pro toto řešení nepoužívejte jiné moduly než: os, sys, time, path, math!!!
-
-
-#def walktree(top, callback):
-#
-#    listd = os.listdir(top)
-#    listd.sort()
-
-#    for f in listd:
-#        pathname = os.path.join(top, f)
-#        if os.path.isdir(pathname):
-#            print("|{:.<84}|".format(os.path.basename(pathname)))
-#            walktree(pathname, callback)
-#        elif os.path.isfile(pathname):
-#            # It's a file, call the callback function
-#            #callback(pathname,f)
-#            pass
-#        else:
-#            # Unknown file type, print a message
-#            print('Skipping %s' % pathname)
+# Reseni se skládá z 3 funkce:
+# 1) validate(string, num) připravuje hodnoty. Kontroluje NA, když je číselná, očistí od textů, symbolů a mezer, ořízne mezery na začátku a konci
+# 2) fotbaliste(text) rozdělí řetězec podle oddělovače na jednotlivá fotbalisté, pak rozdělí na jednotlivé vlastnosti. Vlastnosti připraví pomocí první funkce a vypíše do zadaného formátu
 
 def visitfile(filepath, name):
-	stats = os.stat(filepath)
-	index = name.index('.')
-	print("|{: >19}|".format(name[:index])+"{: >16}".format(name[index:])+" |{: >18}|".format(round(stats.st_size / 1048576, 3))+"{: >26} |".format(time.ctime(stats.st_mtime)))
+    stats = os.stat(filepath)
+    try:
+        index = name.index('.')
+        print("|{: >19}|".format(name[:index][0:18])+"{: >16}".format(name[index:])+" |{: >18}|".format(round(stats.st_size / 1048576, 3))+"{: >26} |".format(time.ctime(stats.st_mtime)))
+    except:
+        print("|{: >19}|".format(name[0:18])+"{: >16}".format('')+" |{: >18}|".format(round(stats.st_size / 1048576, 3))+"{: >26} |".format(time.ctime(stats.st_mtime)))
 
 
 def walktree(mypath):
 	listd = os.walk(mypath)
 	
-	for f in listd:
-		folderpath = os.path.basename(mypath) + ' / ' +os.path.basename(f[0]) if f[0] != mypath else os.path.basename(f[0])
-		print("| {:.<83}| ".format(folderpath+':'))
+	for root, dirs, files in listd:
+		basefolder = root.index(os.path.basename(mypath))
+		basefolder = root[basefolder:]
+		folderpath = basefolder.replace('/', ' / ') if root != mypath else os.path.basename(root)
+		print("| {:.<83}| ".format(folderpath[0:65]+':'))
 		
 
-		if len(f[2]) > 0:
+		if len(files) > 0:
 			#print(f[2])
-			f[2].sort()
-			for file in f[2]:
-				pathname = os.path.join(f[0], file)
+			files.sort()
+			for file in files:
+				pathname = os.path.join(root, file)
 				visitfile(pathname, file)
 
 		
@@ -154,7 +166,7 @@ def get_me_info_about(mypath = "C:\\Users\\karel\\Documents"):
 
 
 
-#get_me_info_about('/home/pinguin/Documents/Unicorn2020/Interpretace seminarka/test_script')
+get_me_info_about('/home/pinguin/Documents/Unicorn2020/Python-Unicorn')
 
 
 
@@ -388,7 +400,7 @@ def testovani(filepath):
 
 
 #parse_volby()
-testovani('dataframe.csv')
+#testovani('dataframe.csv')
 
 
 

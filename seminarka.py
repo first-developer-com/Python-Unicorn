@@ -104,6 +104,8 @@ def fotbaliste(text):
 		
 # formát používám pro formátování řádků, kde výrazem :-^38} nastavím pozice řetězce a zaplnění mezer. 38 je délka řádku | je prostě symbol. Tím "říkám" ulož mi hodnotu proměně uprostřed řádku, který mezi | a | bude mít 38 znaky, a zbytek doplň znakem -
 
+
+# Testování
 #fotbaliste("Karel Novak, 39 let, 1500, V:2,R:0,P:1; Jana Malá, 40 let, 2100, V:3, R:1,P:0; Pavel Mlady, 20 let, NA, V:1, R:NA, P:0")	
 #fotbaliste("Igor Novy, 22 let, 999, V:2,R:1,P:2")			
 #fotbaliste("NA NA, NA let, NA, V:NA,R:NA,P:NA")
@@ -115,58 +117,58 @@ def fotbaliste(text):
 ####################################################################################################################################################################################################################################################################################################
 
 # Reseni se skládá z 3 funkce:
-# 1) validate(string, num) připravuje hodnoty. Kontroluje NA, když je číselná, očistí od textů, symbolů a mezer, ořízne mezery na začátku a konci
-# 2) fotbaliste(text) rozdělí řetězec podle oddělovače na jednotlivá fotbalisté, pak rozdělí na jednotlivé vlastnosti. Vlastnosti připraví pomocí první funkce a vypíše do zadaného formátu
+# 1) visitfile(filepath, name) zkoumá soubor. Získává jeho jméno, sufix, velikost a poslední změnu. Printi řádek souboru.
+# 2) walktree(mypath) rekursivně prochází adresář, vypisuje podadresáře, získává soubory v jednotlivém adresáři a volá visitfile pro každý soubor. Je wraperem funkce os.walk
+# 3) get_me_info_about(mypath) prijma cestu, printi hlavičku a patičku výstupné tabulky, v správním místě volá walktree()
 
-def visitfile(filepath, name):
-    stats = os.stat(filepath)
-    try:
-        index = name.index('.')
-        print("|{: >19}|".format(name[:index][0:18])+"{: >16}".format(name[index:])+" |{: >18}|".format(round(stats.st_size / 1048576, 3))+"{: >26} |".format(time.ctime(stats.st_mtime)))
+def visitfile(filepath, name): 
+    stats = os.stat(filepath) # získávám údaje souboru pomocí os.state
+    try:   # některé soubory (minimálně v Unix systémech nemají sufix (extension). Pro takové subory metoda index('.') hodí chybu. Proto užívám try/except )
+        index = name.index('.') # dělím název souboru na jméno a sufix
+        print("|{: >19}|".format(name[:index][0:18])+"{: >16}".format(name[index:])+" |{: >18}|".format(round(stats.st_size / 1048576, 3))+"{: >26} |".format(time.ctime(stats.st_mtime))) # printim údaje suoboru z použitím metody format() jako v minulém příkladě. V proměně stat mám uložené různé údaje souoru. Mí zajímá velikost stats.st_size a poslední úprava. Velikost mám v bytes, pro MB dělím 1048576 a skratim do 3 deset. míst pomocí round. Pro formátování času z timestamp do našeho formátu používám ctime z balíčku time
     except:
         print("|{: >19}|".format(name[0:18])+"{: >16}".format('')+" |{: >18}|".format(round(stats.st_size / 1048576, 3))+"{: >26} |".format(time.ctime(stats.st_mtime)))
 
 
-def walktree(mypath):
-	listd = os.walk(mypath)
-	
-	for root, dirs, files in listd:
-		basefolder = root.index(os.path.basename(mypath))
+def walktree(mypath): # přijímá mypath - cesta od / do zkoumané složky
+	listd = os.walk(mypath) # rekursivně prochází adresář a ukládá do listd objekt "generator object walk"
+
+	for root, dirs, files in listd: # listd se dá probrat for cyklusem. Pro pohodlí pouzivaam 3 proměnný (protože jednotlivý objekt z listd má 3 objektů. 1 string a 2 listu) root je cesta od / do složky v mypath (mypathfolder/slozka1/podslozka2). dirs má v sobě seznam název složek v složce root. files má v sobě názvy souborů v složce root
+		basefolder = root.index(os.path.basename(mypath)) 
 		basefolder = root[basefolder:]
-		folderpath = basefolder.replace('/', ' / ') if root != mypath else os.path.basename(root)
-		print("| {:.<83}| ".format(folderpath[0:65]+':'))
-		
-
-		if len(files) > 0:
-			#print(f[2])
-			files.sort()
-			for file in files:
-				pathname = os.path.join(root, file)
-				visitfile(pathname, file)
+		#  do basefolder ukládám cestu k aktuálně podslozce od složky mypath (Dokumenty / muje_slozka /slozka_v_slozce). Pro to získávám název zkoumané složky bez cesty pomocí basename. Pak pomocí index rozdělím cestu od / do mypath a od mypath do aktuálně podslozky. Používám druhou
+		folderpath = basefolder.replace('/', ' / ') # přidávám mezery mezi adresáři
+		print("| {:.<83}| ".format(folderpath[0:65]+':')) # Printim cestu aktuálně složky
+		if len(files) > 0: # ověřuji obsahuje aktualna složka v sobě soubory nebo ne
+			files.sort() # pokud ano, seřadím jich podle názvu
+			for file in files: # cyklusem proberu každý soubor
+				pathname = os.path.join(root, file) # pomocí join slepím cestu od / do souboru a název souboru
+				visitfile(pathname, file) # zavolám funkce visitfile pro výpis údaje o souboru
 
 		
 
-
-def get_me_info_about(mypath = "C:\\Users\\karel\\Documents"):
-
+def get_me_info_about(mypath = os.getcwd()): # prijma cestu od /, když není zadaná, argumentem bude aktuální složka (zjistím pomocí getcwd())
+	# printim hlavičku
 	print("|{:-^84}|".format(" get_me_info_about "))
 	print("|{:-^84}|".format("Analyzovaná adresa:"))
 	print("|{:-^84}|".format(mypath))
 	print("|{:-^84}|".format(""))
 	print("|{: ^19}|".format("Soubor")+"{: ^16}".format("Sufix")+"|{: ^19}|".format("Velikost v MB")+"{: ^27}|".format("Naposledy změněno"))
-	#print("|{:.<84}|".format(os.path.basename(mypath)))
 		
-	
+	# printim tělo	
 	walktree(mypath)	
 	
+	# printim patičku
 	print("|{:-^84}|".format(""))
-	print("|{:-^84}|".format(" <"+time.ctime(time.time())+"> "))
+	print("|{:-^84}|".format(" <"+time.ctime()+"> ")) # zjistím aktuální čas pomocí time.ctime()
 	
 
 
 
-
-get_me_info_about('/home/pinguin/Documents/Unicorn2020/Python-Unicorn')
+# Testování
+#get_me_info_about()
+#get_me_info_about("/var/www/html/first-developer.com")
+#get_me_info_about("/home/pinguin/Documents/Unicorn2020/Python-Unicorn/test_folder_task3")
 
 
 
@@ -186,7 +188,7 @@ from urllib.parse import urljoin
 import pandas as pd 
 import numpy as np
 import matplotlib.pyplot as plt
-#from ggplot import *
+from ggplot import *
 
 
 def parse(url):
@@ -351,7 +353,6 @@ def make_graphs(dataframe):
 	
 
 
-
 def analyze_obec(jObec, dataframe):
 	
 	#print(dataframe.columns)
@@ -392,15 +393,17 @@ def analyze_obec(jObec, dataframe):
 
 	
 
-def testovani(filepath):
-	dataFR = pd.read_csv(filepath, delimiter=',')
-	analyze_obec('Běstvina' ,dataFR)
-	make_graphs(dataFR)
+def run_parsing():
+	if parse_volby():
+		dataFR = pd.read_csv('dataframe.csv', delimiter=',')
+		analyze_obec('Běstvina' ,dataFR)
+		make_graphs(dataFR)
 
 
 
-#parse_volby()
-#testovani('dataframe.csv')
 
-
+#run_parsing()
+dataFR = pd.read_csv('dataframe.csv', delimiter=',')
+analyze_obec('Běstvina' ,dataFR)
+make_graphs(dataFR)
 

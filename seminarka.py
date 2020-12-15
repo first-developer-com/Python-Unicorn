@@ -188,7 +188,7 @@ from urllib.parse import urljoin
 import pandas as pd 
 import numpy as np
 import matplotlib.pyplot as plt
-from ggplot import *
+from plotnine import ggplot, aes, geom_point
 
 
 def parse(url):
@@ -347,7 +347,7 @@ def make_graphs(dataframe):
 
 	
 	pvPop = dataframe[[dataframe.columns[3],dataframe.columns[4]]]
-	#ggplot(pvPop, aes(x='Počet voličů', y='Počet odevzdaných hlasů')) + geom_point()
+	print(ggplot(pvPop, aes(x='Počet voličů', y='Počet odevzdaných hlasů')) + geom_point())
 	
 	plt.show()
 	
@@ -406,4 +406,9 @@ def run_parsing():
 dataFR = pd.read_csv('dataframe.csv', delimiter=',')
 analyze_obec('Běstvina' ,dataFR)
 make_graphs(dataFR)
+
+
+
+
+
 

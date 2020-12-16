@@ -141,7 +141,7 @@ def walktree(mypath): # přijímá mypath - cesta od / do zkoumané složky
 		print("| {:.<83}| ".format(folderpath[0:65]+':')) # Printim cestu aktuálně složky
 		if len(files) > 0: # ověřuji obsahuje aktualna složka v sobě soubory nebo ne
 			files.sort() # pokud ano, seřadím jich podle názvu
-			for file in files: # cyklusem proberu každý soubor
+			for file in files: # cyklusem projdu každý soubor
 				pathname = os.path.join(root, file) # pomocí join slepím cestu od / do souboru a název souboru
 				visitfile(pathname, file) # zavolám funkce visitfile pro výpis údaje o souboru
 
@@ -176,9 +176,17 @@ def get_me_info_about(mypath = os.getcwd()): # prijma cestu od /, když není za
 ####################################################################################################################################################################################################################################################################################################
 #	4. Příklad 
 ####################################################################################################################################################################################################################################################################################################
+# Reseni se skládá z 8 funkce:
+# 1) parse(url) parsuje webovu stránku z argumentů url.
+# 2) parseOkres(url, baseUrl) parsuje odkazy na jednotlivé obcí z stránky kraje.
+# 3) parseObec(url,jObec,jOkres,kraj,cObec) parsuje daty o volbách v obci. Vrátí list z hodnotama. Ten list bude dál řádkem dataframu
+# 4) create_dataframe(table) vytvoří dataframe z matice (numpy array) a formátuje číselné stloupce
+# 5) analyze_obec(jObec, dataframe) provádí analýzu voleb v obci a printi do konzole statistiky obce
+# 6) make_graphs(dataframe) kreslí grafy o volbách
+# 7) parse_volby() je hlavní funkce zadání. Zpracova výsledky parsovani, vytvoří matice a volá dasli funkce toho zadání
 
 
-# okres Pardubický kraj 
+# Pardubický kraj 
 
 
 import requests
@@ -191,69 +199,67 @@ import matplotlib.pyplot as plt
 from plotnine import ggplot, aes, geom_point
 
 
-def parse(url):
-	
-	#page_response = requests.get('http://localhost/volbycz.html', timeout=5)
+def parse(url): # Přijímá url adresu webu pro parsovani. Vrátí html strukturu webu nebo False
 
-	page_response = requests.get(url)
-	page_content = BeautifulSoup(page_response.text, 'lxml')
-	if page_response.status_code == 200:
-		page_content = BeautifulSoup(page_response.text, 'lxml')
-		return page_content
+	#page_response = requests.get('http://localhost/volbycz.html', timeout=5)
+	page_response = requests.get(url) # pomocí get() z balíčku requests, stáhneme stránku
+	if page_response.status_code == 200: # ověřím, že ta stránka se stáhla v pohodě. O tom mi říká kód 200. Pokud ten requests nemá cache, to stačí
+		page_content = BeautifulSoup(page_response.text, 'lxml') # pomocí BeautifulSoup() z parserem lxml vytáhnu html web stránky
+		return page_content 
 	else:
-		print('Error. Page returned  '+str(page_response.status_code)+' status')	
+		print('Error. Page returned  '+str(page_response.status_code)+' status') # Estli stránka vrátila nějaký špatný kód, vypisuju hlášku a vrátím False
 		return False
 
 
-def parseOkres(url, baseUrl):
-	okresPage = parse(url)
-	if not okresPage:
+def parseOkres(url, baseUrl): # Přijímá url adresu okresů a hlavní stránky, vrátí slovník z seznamem odkazů na jednotlivé obcí a některé údaje obci
+	okresPage = parse(url)  # parsuju stránku okresu
+	if not okresPage: # kontrola úspěšnosti parsovani
 		print('neni pristupna stranka '+odkaz)
 		return False
-	res = dict()	
+	res = dict() # nadefinuju slovník pro ukládání výsledků prací funkce
 	
-	bodyTables = okresPage.find("div", id="inner").find_all('div', {'class': 't3'})  #find('table', {'class': 'table'}).find_all('tr')
-	
-	for bodyTableDiv in bodyTables:
-		bodyTable = bodyTableDiv.find('table', {'class': 'table'}).find_all('tr')
+	bodyTables = okresPage.find("div", id="inner").find_all('div', {'class': 't3'})  # z html stránky vytáhnu bloky z tabulkama (tři stloupce na webu) find() hlídám první div.inner a v tom div pomocí find_all všichni div které mají class t3
+	for bodyTableDiv in bodyTables: # proházím bloky z tabulkama cyklusem
+		bodyTable = bodyTableDiv.find('table', {'class': 'table'}).find_all('tr') # vytáhnu všichni řádky tabuky
 		
-		for row in bodyTable:
-			if row.td:
-				rowtds = row.find_all('td')
-				if rowtds[0].a:
-					res[urljoin(baseUrl, rowtds[0].find('a').get('href'))] = {'id': rowtds[0].find('a').text, 'name': rowtds[1].text}		
+		for row in bodyTable: # proházím cyklusem každý řádek
+			if row.td: # kontriluju, ze je to řádek těla, není hlavička (v hlavičce se používá th a z nějakého důvodu ne třídí se na thead a tbody)
+				rowtds = row.find_all('td') # ukládám řádek do proměně
+				if rowtds[0].a: # pokud není prázdný (jako v nějakým okresu poslední řádek)
+					res[urljoin(baseUrl, rowtds[0].find('a').get('href'))] = {'id': rowtds[0].find('a').text, 'name': rowtds[1].text} # ukládám do slovníku odkaz (odkaz konkatenuju z adresou webu protože jsou relativní) 
 	return res	
 
 		
 
-def parseObec(url,jObec='NULL', jOkres='NULL', kraj='NULL', cObec='NULL'):
-	obecPage = parse(url)
-	if not obecPage:
+def parseObec(url,jObec='NULL', jOkres='NULL', kraj='NULL', cObec='NULL'): # Přijímá url adresu obce a údaje, které jsou na stránce okresů. Vrátí list, který bude řádkem v výsledním dataframu
+	obecPage = parse(url) # parsuju stránku obce
+	if not obecPage: # kontrola úspěšnosti parsovani
 		print('neni pristupna stranka '+odkaz)
 		return False
 
-	headTable = obecPage.find("table", id="ps311_t1").find_all('tr')
+	headTable = obecPage.find("table", id="ps311_t1").find_all('tr') # vytáhnu všichni řádky tabulky z datama o volicech
 
-	pv = ''.join(headTable[2].find_all('td')[3].text.split()) # Počet voličů
+	# ''.join(obj.text.split()) používám pro odstranani mezer.
+	pv = ''.join(headTable[2].find_all('td')[3].text.split()) # Počet voličů 
 	poh = ''.join(headTable[2].find_all('td')[6].text.split()) # Počet odevzdaných hlasů				
 	pph = ''.join(headTable[2].find_all('td')[7].text.split()) # Počet platných hlasů
-	pvo = ''.join(headTable[2].find_all('td')[0].text.split())# Počet volebních okrsků
+	pvo = ''.join(headTable[2].find_all('td')[0].text.split()) # Počet volebních okrsků
 
-	result = [jObec, jOkres, kraj, pv, poh, pph, pvo, cObec]
+	result = [jObec, jOkres, kraj, pv, poh, pph, pvo, cObec] # definuju list výsledků
 	
-
-	bodyTables = obecPage.find("div", id="inner").find_all('div', {'class': 't2_470'})
+	# dále stejně jako v minulé funkce
+	bodyTables = obecPage.find("div", id="inner").find_all('div', {'class': 't2_470'})   
 	
-	for bodyTableDiv in bodyTables:
-		bodyTable = bodyTableDiv.find('table', {'class': 'table'}).find_all('tr')
+	for bodyTableDiv in bodyTables: 
+		bodyTable = bodyTableDiv.find('table', {'class': 'table'}).find_all('tr') 
 		
 	
-		for row in bodyTable:
+		for row in bodyTable: 
 			if row.td:
 				rowtds = row.find_all('td')
 				result.append(''.join(rowtds[2].text.split()))
 
-	if len(result) != 32:
+	if len(result) != 32: # ověřím, že počet stran je správný. Jinak pak by to se neuložilo do matice
 			print('Chyba!!! Obec '+ jObec + ' vratil spatne cislo vysledku')		
 			print(result)
 			print(len(result))
@@ -261,126 +267,45 @@ def parseObec(url,jObec='NULL', jOkres='NULL', kraj='NULL', cObec='NULL'):
 	else:
 		return result			
 
-def create_dataframe(strany):
+def create_dataframe(table): # Funkce pro vytvoření dataframu a ukládání do něho výsledků parsovani. Argumentem je matice "tělo" dataframu. Vrátí dataframe
 
 	columns=['Jméno obce', 'Okres', 'Kraj', 'Počet voličů', 'Počet odevzdaných hlasů', 'Počet platných hlasů', 'Počet volebních okrsků', 'Číslo obce', 'Občanská demokratická strana', 'Řád národa - Vlastenecká unie', 'CESTA ODPOVĚDNÉ SPOLEČNOSTI', 'Česká str.sociálně demokrat.', 'Radostné Česko', 'STAROSTOVÉ A NEZÁVISLÍ', 'Komunistická str.Čech a Moravy', 'Strana zelených', 'ROZUMNÍ-stop migraci,diktát.EU', 'Strana svobodných občanů', 'Blok proti islam.-Obran.domova', 'Občanská demokratická aliance', 'Česká pirátská strana', 'Referendum o Evropské unii', 'TOP 09', 'ANO 2011', 'Dobrá volba 2016', 'SPR-Republ.str.Čsl. M.Sládka', 'Křesť.demokr.unie-Čs.str.lid.', 'REALISTÉ', 'SPORTOVCI', 'Dělnic.str.sociální spravedl.', 'Svob.a př.dem.-T.Okamura (SPD)', 'Strana Práv Občanů']
 
-	df = pd.DataFrame(strany, columns = columns)
-	print(df)
-	df.to_csv('dataframe.csv', encoding='utf-8', index=False)	
-	return df				
-
-def parse_volby():
-
-	baseUrl = 'https://volby.cz/pls/ps2017nss/ps3?xjazyk=CZ'
-	kraj = 'Pardubický kraj'
-	homepage = parse(baseUrl)
-	if not homepage:
-		quit('Příklad 4, Doslo k chybe parsovani homepage')
-
-	
-	tables = homepage.body.find("div", id="content").find("div", id="publikace").select("table.table")
-
-	tablePardubicky = None
-
-	for table in tables:
-		if 'část '+kraj in table.caption.text:
-			tablePardubicky = table
-			break
-
-	if not tablePardubicky:
-		exit('Neni informace o '+kraj)	
-
-	
-	matice = np.array([])
-	
-	
-	for row in tablePardubicky.select('tr'):
-		cells = row.find_all('td')
-		if cells:
-			
-			odkaz = urljoin(baseUrl, cells[3].a.get("href"))
-			jOkres = cells[1].text
-
-			okresy = parseOkres(odkaz, baseUrl)
-			for url, data in okresy.items():
-				jObec = data['name']
-				cObec = data['id'].strip()
-				
-				resultRow = parseObec(url, jObec, jOkres, kraj, cObec)
-				if resultRow:
-					
-					try:
-						matice = np.vstack((matice, np.array(resultRow)))
-					except:
-						matice = np.hstack((matice, np.array(resultRow)))
-					
-					
-	dataFR = create_dataframe(matice)
-	return True	
-
-
-
-def make_graphs(dataframe):
-	
-	strany = dataframe[dataframe.columns[8:32]].sum()
-	strany = pd.to_numeric(strany)
-	sortedStrany = strany.sort_values(ascending=False)
-	top10 = sortedStrany[0:10]
-	
-	top10.plot.bar() #Sloupcový graf, který bude zobrazovat agregované údaje za celý kraj – počet získaných hlasů dle 10 nejúspěšnějších stran v kraji
-
-	oskresyHlasy = dataframe[[dataframe.columns[1],dataframe.columns[4]]]
-	oskresyHlasyGR = oskresyHlasy.groupby(dataframe.columns[1])
-	kolecko_names = list()
-	kolecko_values = list()
-	for okres in oskresyHlasyGR.groups:
-		kolecko_names.append(okres)
-		kolecko_values.append(oskresyHlasyGR.get_group(okres).sum()[1])
+	df = pd.DataFrame(table, columns = columns)
+	for column in df.columns:
+		if column not in ['Jméno obce', 'Okres', 'Kraj']:
+			df[column] = df[column].apply(int)
 		
-	if len(kolecko_names) == len(kolecko_values):
-		fig1, ax1 = plt.subplots()
+	return df
 
-		wedges, texts, autotexts = ax1.pie(kolecko_values, labels=kolecko_names, autopct='%1.2f%%')
-		ax1.axis('equal')
-		ax1.legend(loc='upper left', bbox_to_anchor=(-0.10, 0.5)) #Koláčový graf, který bude zobrazovat počet odevzdaných hlasů v jednotlivých okresech!
 
+def analyze_obec(jObec, dataframe): # Funkce analuzy obce. Přijímá název obce a dataframe výsledků voleb
 	
-	pvPop = dataframe[[dataframe.columns[3],dataframe.columns[4]]]
-	print(ggplot(pvPop, aes(x='Počet voličů', y='Počet odevzdaných hlasů')) + geom_point())
-	
-	plt.show()
-	
-
-
-def analyze_obec(jObec, dataframe):
-	
-	#print(dataframe.columns)
-	obec = dataframe[dataframe[dataframe.columns[0]] == str(jObec)]
-	iObce  = obec.index
-	kraj = dataframe.loc[iObce]['Kraj'][0]
-	okres = dataframe.loc[iObce]['Okres'][0]
-	krajeRows = dataframe[dataframe[dataframe.columns[2]] == kraj]
-	okseryRows = dataframe[dataframe[dataframe.columns[1]] == okres]
-	pvObec = obec[dataframe.columns[3]][0]
-	pvOkres = okseryRows[dataframe.columns[3]].values.sum()
-	pvKraj = krajeRows[dataframe.columns[3]].values.sum()
-	prcPvObec = round(pvObec/pvKraj*100, 2)
-	prcPvObec2 = round(pvObec/pvOkres*100, 2)
-
-	pphObec = obec[dataframe.columns[5]][0]
+	# selektovami z dataframu daty voleb
+	obec = dataframe[dataframe[dataframe.columns[0]] == str(jObec)] # vybírám 1 řádek z df pro nás obec podle jména
+	iObce  = obec.index # zjistím jeho pořadové číslo v df
+	kraj = dataframe.loc[iObce]['Kraj'][0] # kraj z řádku našeho obce, řádek vybírám pomocí loc
+	okres = dataframe.loc[iObce]['Okres'][0] # okres z radku naseho obce
+	krajeRows = dataframe[dataframe[dataframe.columns[2]] == kraj] # vybírám všichni řádky kde kraj je jako u našeho obce
+	okseryRows = dataframe[dataframe[dataframe.columns[1]] == okres] # vybírám všichni řádky kde okres je jako u našeho obce
+	pvObec = obec[dataframe.columns[3]][0] #  Počet voličů v obci
+	pvOkres = okseryRows[dataframe.columns[3]].values.sum() # součet (sum()) počtu voličů v okresu, kde okres je jako u našeho obce
+	pvKraj = krajeRows[dataframe.columns[3]].values.sum() # součet (sum()) počtu voličů v kraje, kde kraj je jako u našeho obce
+	prcPvObec = round(pvObec/pvKraj*100, 2) # procento z kraje
+	prcPvObec2 = round(pvObec/pvOkres*100, 2) # procento z okresu
+	# analogicky pro Počet platných hlasů
+	pphObec = obec[dataframe.columns[5]][0] 
 	pphOkres = okseryRows[dataframe.columns[5]].values.sum()
 	pphKraj = krajeRows[dataframe.columns[5]].values.sum()
 	prcPphObec = round(pphObec/pphKraj*100, 2)
 	prcPphObec2 = round(pphObec/pphOkres*100, 2)
 
-	strany = obec[dataframe.columns[8:32]]
-	strany = strany.astype(int)
-	vyhrala = strany[strany.columns[np.argmax(strany)]].name
-	dostala = strany[strany.columns[np.argmax(strany)]][0]
+	strany = obec[dataframe.columns[8:32]] # vybírám stloupce 8-32, které mají v sobě info o počtu hlasů za každou stranu
+	vyhrala = strany[strany.columns[np.argmax(strany)]].name # np.argmax vrátí element df z největší hodnotou. vytáhnu název strany z největším počtem hlasů
+	dostala = strany[strany.columns[np.argmax(strany)]][0] # vytáhnu počet hlasů strany z největším počtem hlasů
 
+	# Výpis výsledků
 	print("Vysledky analyzy volby v obci "+str(jObec))
-
 	print("Počet voličů v obci: "+str(pvObec))
 	print("% od poctu okresu: " + str(prcPvObec2) + "%")
 	print("% od poctu kraje: " + str(prcPvObec) + "%")
@@ -391,21 +316,88 @@ def analyze_obec(jObec, dataframe):
 	print("V obci "+str(jObec)+" strana "+ str(vyhrala) + " a dostala "+ str(dostala)+" hlasu")
 
 
+def make_graphs(dataframe): # Funkce kreslení grafů. Prijma dataframe, vykreslí 3 grafů
+	
+	strany = dataframe[dataframe.columns[8:32]].sum() # vyfiltruju jenom stloupce z statistikamy stran
+	strany = pd.to_numeric(strany) # převedu do číselného formátu
+	sortedStrany = strany.sort_values(ascending=False) # seřadím od většího k menšímu
+	top10 = sortedStrany[0:10] # výběru top 10
+	
+	top10.plot.bar() # Sloupcový graf, který bude zobrazovat agregované údaje za celý kraj – počet získaných hlasů dle 10 nejúspěšnějších stran v kraji
+
+	oskresyHlasy = dataframe[[dataframe.columns[1],dataframe.columns[4]]] # vyfiltruju z df jenom název okresu a počet hlasů
+	oskresyHlasyGR = oskresyHlasy.groupby(dataframe.columns[1]) # třídím daty podele okresu
+	kolecko_names = list() 
+	kolecko_values = list()
+	for okres in oskresyHlasyGR.groups: # projdu jednotlivé okresy
+		kolecko_names.append(okres) # přidám název okresu
+		kolecko_values.append(oskresyHlasyGR.get_group(okres).sum()[1]) # přidám součet hlasů v okresu
+	
+	if len(kolecko_names) == len(kolecko_values): # zkontroluju, že minulykrok byl úspěšným
+		# Koláčový graf, který bude zobrazovat počet odevzdaných hlasů v jednotlivých okresech
+		fig1, ax1 = plt.subplots() # definice
+		ax1.pie(kolecko_values, labels=kolecko_names, autopct='%1.2f%%')
+		ax1.axis('equal') # forma kolečka
+		ax1.legend(loc='upper left', bbox_to_anchor=(-0.10, 0.5)) # pozice kolečka
+
+	
+	pvPop = dataframe[[dataframe.columns[3],dataframe.columns[4]]] # vyfiltruju jenom stloupce z statistikamy počem voličů a počtem odevzdaných hlasů
+	print(ggplot(pvPop, aes(x='Počet voličů', y='Počet odevzdaných hlasů')) + geom_point()) # zobrazím ggplot
+		
+	plt.show() # zobrazím grafy matplotlib
 	
 
-def run_parsing():
-	if parse_volby():
-		dataFR = pd.read_csv('dataframe.csv', delimiter=',')
-		analyze_obec('Běstvina' ,dataFR)
-		make_graphs(dataFR)
+def parse_volby(kraj = 'Pardubický kraj', obec = 'Běstvina'): # hlavní funkce. Přijímá název kraje a obce
+
+	baseUrl = 'https://volby.cz/pls/ps2017nss/ps3?xjazyk=CZ' # url webu z vysledkama voleb
+
+	homepage = parse(baseUrl) # parsovani 1 stránky z statistikama státu
+	if not homepage: # kontrola úspěšnosti parsovani
+		quit('Příklad 4, Doslo k chybe parsovani homepage')
+
+	tables = homepage.body.find("div", id="content").find("div", id="publikace").select("table.table") # získání tabulek z kraje
+
+	tableMyKraj = None 
 
 
+	for table in tables: # cyklusem proházím tabulky
+		if 'část '+kraj in table.caption.text: # pokud tabulka má v caption můj kraj přidám ji do tableMyKraj a skončím cyklus break
+			tableMyKraj = table
+			break
+
+	if not tableMyKraj: # pokud taková tabulka neexistuje, skončím skript z hláškou
+		exit('Neni informace o '+kraj)	
+	
+	matice = np.array([]) # nadefinuju matice pro výsledky
+	
+	for row in tableMyKraj.select('tr'): # získám všichni řádky z tabulky
+		cells = row.find_all('td') # uložím a ověřím buňky
+		if cells:
+			
+			odkaz = urljoin(baseUrl, cells[3].a.get("href")) # získám odkaz na jednotlivý okres
+			jOkres = cells[1].text # získám název obce
+
+			okresy = parseOkres(odkaz, baseUrl) # získám data z stránky okresu
+			for url, data in okresy.items(): # projdu cyklusem výsledek parseOkres()
+				jObec = data['name']
+				cObec = data['id'].strip()
+				
+				resultRow = parseObec(url, jObec, jOkres, kraj, cObec) # získám data z stránky okraje
+				if resultRow:
+					try: # do prázdné matice nedá se provést vstack, do neprázdné potřebuju uložit další řádek, ne doplnit ten (vstack)
+						matice = np.vstack((matice, np.array(resultRow)))
+					except:
+						matice = np.hstack((matice, np.array(resultRow)))
+					
+					
+	dataFR = create_dataframe(matice) # zkonvertuju matice do dataframe
+	analyze_obec(obec ,dataFR) # spustím analýzu obce
+	make_graphs(dataFR) # vykreslím grafy
+	return True	
 
 
-#run_parsing()
-dataFR = pd.read_csv('dataframe.csv', delimiter=',')
-analyze_obec('Běstvina' ,dataFR)
-make_graphs(dataFR)
+parse_volby('Pardubický kraj', 'Běstvina')
+
 
 
 

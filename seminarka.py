@@ -275,7 +275,7 @@ def create_dataframe(table): # Funkce pro vytvoření dataframu a ukládání do
 	for column in df.columns:
 		if column not in ['Jméno obce', 'Okres', 'Kraj']:
 			df[column] = df[column].apply(int)
-		
+	#df.to_csv('dataframe.csv', encoding='utf-8', index=False)	
 	return df
 
 
@@ -284,17 +284,18 @@ def analyze_obec(jObec, dataframe): # Funkce analuzy obce. Přijímá název obc
 	# selektovami z dataframu daty voleb
 	obec = dataframe[dataframe[dataframe.columns[0]] == str(jObec)] # vybírám 1 řádek z df pro nás obec podle jména
 	iObce  = obec.index # zjistím jeho pořadové číslo v df
-	kraj = dataframe.loc[iObce]['Kraj'][0] # kraj z řádku našeho obce, řádek vybírám pomocí loc
-	okres = dataframe.loc[iObce]['Okres'][0] # okres z radku naseho obce
+		
+	kraj = dataframe.loc[iObce,'Kraj'].values[0] # kraj z řádku našeho obce, řádek vybírám pomocí loc
+	okres = dataframe.loc[iObce,'Okres'].values[0] # okres z radku naseho obce
 	krajeRows = dataframe[dataframe[dataframe.columns[2]] == kraj] # vybírám všichni řádky kde kraj je jako u našeho obce
 	okseryRows = dataframe[dataframe[dataframe.columns[1]] == okres] # vybírám všichni řádky kde okres je jako u našeho obce
-	pvObec = obec[dataframe.columns[3]][0] #  Počet voličů v obci
+	pvObec = obec[dataframe.columns[3]].values[0] #  Počet voličů v obci
 	pvOkres = okseryRows[dataframe.columns[3]].values.sum() # součet (sum()) počtu voličů v okresu, kde okres je jako u našeho obce
 	pvKraj = krajeRows[dataframe.columns[3]].values.sum() # součet (sum()) počtu voličů v kraje, kde kraj je jako u našeho obce
 	prcPvObec = round(pvObec/pvKraj*100, 2) # procento z kraje
 	prcPvObec2 = round(pvObec/pvOkres*100, 2) # procento z okresu
 	# analogicky pro Počet platných hlasů
-	pphObec = obec[dataframe.columns[5]][0] 
+	pphObec = obec[dataframe.columns[5]].values[0]
 	pphOkres = okseryRows[dataframe.columns[5]].values.sum()
 	pphKraj = krajeRows[dataframe.columns[5]].values.sum()
 	prcPphObec = round(pphObec/pphKraj*100, 2)
@@ -302,16 +303,16 @@ def analyze_obec(jObec, dataframe): # Funkce analuzy obce. Přijímá název obc
 
 	strany = obec[dataframe.columns[8:32]] # vybírám stloupce 8-32, které mají v sobě info o počtu hlasů za každou stranu
 	vyhrala = strany[strany.columns[np.argmax(strany)]].name # np.argmax vrátí element df z největší hodnotou. vytáhnu název strany z největším počtem hlasů
-	dostala = strany[strany.columns[np.argmax(strany)]][0] # vytáhnu počet hlasů strany z největším počtem hlasů
+	dostala = strany[strany.columns[np.argmax(strany)]].values[0] # vytáhnu počet hlasů strany z největším počtem hlasů
 
 	# Výpis výsledků
 	print("Vysledky analyzy volby v obci "+str(jObec))
 	print("Počet voličů v obci: "+str(pvObec))
-	print("% od poctu okresu: " + str(prcPvObec2) + "%")
-	print("% od poctu kraje: " + str(prcPvObec) + "%")
+	print("% od počtu okresu: " + str(prcPvObec2) + "%")
+	print("% od počtu kraje: " + str(prcPvObec) + "%")
 	print("Počet platných hlasů: "+str(pphObec))
-	print("% od poctu okresu: " + str(prcPphObec2) + "%")
-	print("% od poctu kraje: " + str(prcPphObec) + "%")
+	print("% od počtu okresu: " + str(prcPphObec2) + "%")
+	print("% od počtu kraje: " + str(prcPphObec) + "%")
 
 	print("V obci "+str(jObec)+" strana "+ str(vyhrala) + " a dostala "+ str(dostala)+" hlasu")
 
@@ -347,10 +348,10 @@ def make_graphs(dataframe): # Funkce kreslení grafů. Prijma dataframe, vykresl
 	plt.show() # zobrazím grafy matplotlib
 	
 
-def parse_volby(kraj = 'Pardubický kraj', obec = 'Běstvina'): # hlavní funkce. Přijímá název kraje a obce
+def parse_volby(obec = 'Běstvina'): # hlavní funkce. Přijímá název obce
 
 	baseUrl = 'https://volby.cz/pls/ps2017nss/ps3?xjazyk=CZ' # url webu z vysledkama voleb
-
+	kraj = 'Pardubický kraj'
 	homepage = parse(baseUrl) # parsovani 1 stránky z statistikama státu
 	if not homepage: # kontrola úspěšnosti parsovani
 		quit('Příklad 4, Doslo k chybe parsovani homepage')
@@ -396,7 +397,9 @@ def parse_volby(kraj = 'Pardubický kraj', obec = 'Běstvina'): # hlavní funkce
 	return True	
 
 
-parse_volby('Pardubický kraj', 'Běstvina')
+#parse_volby('Běstvina')
+#parse_volby('Bučina')
+
 
 
 
